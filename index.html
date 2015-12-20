@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Quine : An Expert System">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Quine</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/FunctionAnalysis/QUINE-ES">View on GitHub</a>
+
+          <h1 id="project_title">Quine</h1>
+          <h2 id="project_tagline">An Expert System</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/FunctionAnalysis/QUINE-ES/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/FunctionAnalysis/QUINE-ES/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="overview-of-the-system" class="anchor" href="#overview-of-the-system" aria-hidden="true"><span class="octicon octicon-link"></span></a>Overview of the System</h1>
+
+<p>Artificial intelligence applied to cyber security should not be a concern, as long as proper care is placed in writing and executing such an application.  The same can be said of any autonomous tool or application.  The use of the "intelligence" aspect in the form of an expert system assumes learning along with continued monitoring and decision making conducted by humans.</p>
+
+<p>An expert system (ES) relies on a knowledge based along with the ability to follow algorithms in "ïf-then" ruling structures to enable decision making at a level an expert in the field would decide upon.  This application maintains the rule structure and algorithms needed, but no knowledge base is provided, as the cyber security field is primarily seen as more of an "art" then science in that the context informs the decision made more than a set procedure to follow.  This application, which shall now be referred to simply as QUINE, uses the ruling structure developed by Ivan Bratko for detecting broken fuses in a substation.  The adaptation of this rule set is directly applied to network monitoring and cyclic port forensics.  Perhaps a predominant feature in any expert system is that it learns.  QUINE possess a feature to enable this in subsequent releases, and also create additions to the knowledge base deployed alongside the release.  Given the delicacy and potential for high-impact results in each decision made by practitioners of cyber security, it is strongly recommended not to let QUINE operate without a "hand at the helm" meaning a human should always be the final arbiter of an action proposed by QUINE.  </p>
+
+<h2>
+<a id="ok-so-how-does-it-work" class="anchor" href="#ok-so-how-does-it-work" aria-hidden="true"><span class="octicon octicon-link"></span></a>Ok, so how does it work?</h2>
+
+<p>By equating the variable of “Vuln” for “vulnerable” to the argument or “Args” of [_S1], a request from the user to identify if the port specified is in fact vulnerable is possible. With no human input, the next step in this process is to begin the best first search. </p>
+
+<p>The script for the facts in the knowledge base focus on ports and computers along with network protocols.</p>
+
+<pre><code>fact:device(input).
+fact:device(udp).
+fact:device(syn).
+fact:device(ipa).
+fact:device(port).
+fact:(connected(input,port)):-fact:(connected(port(2),computer2)).
+fact:(connected(port(3),computer)):-fact:(connected(port(4),computer)).
+parse:connected(syn,udp,ipa):-parse:connected(syn,udp,syn),input(syn,udp,ipa).
+parse:device(syn,udp,ipa).
+parse:device(defines,classification,port).
+parse:(output(classification(syn|X,udp|Y,ipa|Z))):-input(unknown(X,Y,Z)).
+</code></pre>
+
+<p>The best first search script has a modification to enable network monitoring upon completion, and therefore incorporates predicates for port scanning. The principle behind the best first search is that the search algorithms do not act traditionally but instead use approximations for the solution to allow faster calculations.</p>
+
+<pre><code>bagof(syn/ipa).
+goal(_):-goal(n).
+bestf(Vuln,Solution):-expand(Vuln,l(Vuln,0/0),9999,_,yes,Solution).
+bestf([T|_],F):-f(T,F).
+bestf([],9999).
+expand(P,l(N,_),_,_,yes,[N|P]):-goal(N).
+expand(P,Tree,Bound,Tree1,Solved,Solution):-port(P),port(Tree|Bound|Tree1;Solved|Solution).
+expand(P,l(N,_),_,_,yes,[N|P]):-goal(N).
+expand(P,l(N,F/G),Bound,Tree1,Solved,Sol):-F=&lt;Bound,(bagof(M/C),(s(N,M,C) ,
+port(Member|Vuln),(~(Member|Vuln)-&gt;[M,P],Succ)),!,succlist(G,Succ,Ts),bestf(Ts,Fl),
+      expand(P,t(N,Fl/G,Ts),Bound,Tree1,Solved,Sol);Solved=0).
+expand(P,t(N,F/G,[T|Ts]),Bound,Tree1,Solved,Sol):-F=&lt;Bound,bestf(Ts,BF),input(Bound,BF,Bound1),
+expand([N|P],T,Bound1,Tl,Solved1,Sol),continue(P,t(N,F/G,[Tl|Ts]),Bound,Tree1,Solved1,Solved,Sol).
+expand(_,t(_,_,[]),_,_,never,_):-!.
+expand(_,Tree,Bound,Tree,no,_):-f(Tree,F),F&gt;Bound.
+</code></pre>
+
+<p>The dynamic data exchange (DDE) feature within this software, in combination to the rules shown using best first search actively seeks vulnerabilities through port scans and communication protocols.  The principle factor of the software hinges upon the ability to monitor network communication based upon port access and network protocols. This comes from the use of “port” as a predication of several variables.</p>
+
+<pre><code>port(_) :-
+strip_module(port((Module)--&gt; Plain),Module,Plain),
+Plain =.. [Vuln|Args],
+gather_args(Args, Values),
+Goal =.. [Vuln|Values],
+Module:Goal,
+port(port-&gt;close).
+port(close):-(rl_write_history(port)).
+port(classification(on_signal(Vuln|Scan,Vuln|Open,Open))):-(parse:output(Scan)).
+port(retractall(Vuln)):-port(Vuln).
+port(retractall(parse:parse(Vuln))):-port(Vuln).
+port(Open|Scan):-('$dde_execute'((port(_)),Scan,Open)).
+((port(Access;Open)):-('$dde_request'(((Access)),write([vulnerabilities]),(Open),(port(_))))).
+(((port(IP)) :-dde_current_connection((Scan|Vuln),Scan, Vuln),IP)).
+port((_,_)):-'$dde_disconnect'((_,_,_,_)).
+</code></pre>
+
+<p>The ability of the software to isolate useful forensic data along with data relevant to network defense is shown by output which comes from entering the request of “gather_args(X,Y).” in the prolog terminal. The option to trace calls of predicates and variables starts when the user enters “trace.” into the terminal. The following is the listed output from a trace that comes from the gather_args query:</p>
+
+<pre><code>X = Y, Y = [] ;
+    Redo: (7) gather_args(_G8151722, _G8151723) ? Listinggather_args([], []).
+ gather_args([+A|C], [B|D]) :- !,
+         unknown(port(A, B)),
+         gather_args(C, D).
+ gather_args([A|B], [A|C]) :-
+         gather_args(B, C).
+ gather_args(port(A), port(B)) :-
+         on_signal(A, B, _),
+         port(A),
+         port((B| A)).
+ gather_args(file(D, E), G) :-
+         '$append'(A, [tuple('All files', *.*)], B),
+         A=..[chain|B],
+         current_prolog_flag(hwnd, F),
+         working_directory(C, C),
+         call(get(@display,
+                  win_file_name(D,
+                                A,
+                                E,
+                                directory:=C,
+                                owner:=F),
+                  G)).
+ win_menu:gather_args([], []).
+ win_menu:gather_args([+A|C], [B|D]) :- !,
+         gather_arg(A, B),
+         gather_args(C, D).
+ win_menu:gather_args([A|B], [A|C]) :-
+         gather_args(B, C).
+</code></pre>
+
+<p>The binding of T0 to [] is a signifier of both the ability to again structure lists from the scan as well as the capability to further refine the use of the best first search by restructuring the software. If required, the ability to set T0 to X from the output listed by the gather_args query, in addition to the [_S1] argument as a binding to a port, the hypothesis of the list resulting is of forensic information associated with that port.</p>
+
+<p>The principle behind the infinitely recursive prime lattice structure is a distance function between prime number locations on a natural number line, upon a modified natural number line. The traditional natural number line is a single line where each natural number has an equidistant position.</p>
+
+<pre><code>matrix(node(A,B,C),edge([_]),bestf([],9999)):-matrix((node(A,B,C;d(_))),port(A),input(A)).
+matrix(Line,Node,Distance):-edge(Line|Node+Distance).
+matrix(A|Node_x;(B|Node1,(C|Node3)):-edge(A|Node1),edge(B|Node3), edge(C|Node_x)).
+node(d([prime+1=prime])).
+node(d([prime+2=prime])).
+node(d([prime+1=prime])).
+edge(X,Y):-(matrix(lattice,([])|X,Y)).
+edge([Node1,Node2];[(C;Node3)],[_]):-matrix(Node1|_,Node2|C,Node3).
+edge([A,B];[B,C];[C,B]):-node(3),edge([A,B,C]),distance((node + edge =Distance)),matrix(edge,node,Distance).
+</code></pre>
+
+<h2>
+<a id="why-call-it-quine" class="anchor" href="#why-call-it-quine" aria-hidden="true"><span class="octicon octicon-link"></span></a>Why call it ""QUINE?"</h2>
+
+<h3>
+<a id="the-logician" class="anchor" href="#the-logician" aria-hidden="true"><span class="octicon octicon-link"></span></a>The logician</h3>
+
+<p>Willard van Orman Quine was a mathematician and philosopher. He authored several works throughout his life, including an excellent book titled "Mathematical Logic."  Quine is quoted as saying &gt; “it is within science itself, and not in some prior philosophy, that reality is to be identified and described” </p>
+
+<p>Quine is also known to have married logic and science, a marked difference from his colleagues in the field.</p>
+
+<p><a href="http://plato.stanford.edu/entries/quine/">SEP Site on Quine - Philosopher</a></p>
+
+<h2>
+<a id="the-use-of-logic" class="anchor" href="#the-use-of-logic" aria-hidden="true"><span class="octicon octicon-link"></span></a>The use of logic</h2>
+
+<p>SWI-Prolog may be known as a theorem proof system to some, but also has strong applications to artificial intelligence.  Ivan Bratko has written a work on this relationship, and himself was head of an institute which studied and developed A.I.</p>
+
+<p><a href="http://www.swi-prolog.org/pldoc/doc_for?object=manual">SWI-Prolog Manual</a>
+<a href="http://www.swi-prolog.org/">Official SWIPL Site</a></p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Quine maintained by <a href="https://github.com/FunctionAnalysis">FunctionAnalysis</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
